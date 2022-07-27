@@ -189,4 +189,9 @@ class Main:
                     surface.blit(shape_surf,rect)
 
 if __name__ == "__main__":
-    Main(100,200,5000,1920,1080).run()
+    num_launchers = 999 #if larger than window size, it will take the maximum ammount possible
+    min_frequency = 2000
+    max_frequency = 4000
+    width = 1920 * 0.8 #optional
+    height = 1080 * 0.8 #optional
+    Main(num_launchers, min_frequency, max_frequency, width, height).run()
