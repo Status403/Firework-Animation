@@ -29,7 +29,7 @@ class Main:
     def create_launchers(self, num_launchers, min_frequency, max_frequency):
         space_between_launchers = 2
         if num_launchers >= self.WIDTH / (self.Launcher.WIDTH + space_between_launchers):
-            num_launchers = self.WIDTH // (self.Launcher.WIDTH + space_between_launchers)
+            num_launchers = int(self.WIDTH // (self.Launcher.WIDTH + space_between_launchers))
 
         launcher_space = self.WIDTH / num_launchers
 
@@ -67,8 +67,8 @@ class Main:
         WIDTH = 30
         HEIGHT = 30
         COLOR = "grey"
-        MIN_EXPLODE_HEIGHT = 75
-        MAX_EXPLODE_HEIGHT = 400
+        MIN_EXPLODE_HEIGHT = 300
+        MAX_EXPLODE_HEIGHT = 700
 
         def __init__(self, x, y, frequency,win):
             self.x = x 
@@ -106,9 +106,9 @@ class Main:
         
         class Firework:
             RADIUS = 15
-            MAX_PROJECTILES = 50
+            MAX_PROJECTILES = 40
             MIN_PROJECTILES = 25
-            PROJECTILE_VEL = 4
+            PROJECTILE_VEL = 3
 
             def __init__(self, x, y, y_vel, explode_height, color,win):
                 self.x = x 
@@ -128,13 +128,43 @@ class Main:
             def create_projectiles(self, num_projectiles):
                 angle_dif = math.pi * 2 / num_projectiles
                 current_angle = 0
-                vel = random.randint(self.PROJECTILE_VEL - 2, self.PROJECTILE_VEL + 2)
+                vel = self.PROJECTILE_VEL
                 for _ in range(num_projectiles):
                     x_vel = math.sin(current_angle) * vel
                     y_vel = math.cos(current_angle) * vel
                     color = random.choice(Main.COLORS)
-                    self.projectiles.append(self.Projectile(self.x,self.y,x_vel,y_vel,color,self.win))
+                    self.projectiles.append(self.Projectile(self.x,self.y,x_vel,y_vel,color,self))
                     current_angle += angle_dif
+            
+            def create_sub_projectiles(self, x, y, angle):
+                num_projectiles = 24
+                angle_dif = 2*angle/360 * math.pi  / num_projectiles
+                delta_x = (x - self.x) 
+                delta_y = (y - self.y)
+                if delta_y == 0:
+                    if delta_x > 0:
+                        current_angle =  90/360 * 2 * math.pi
+                    else:
+                        current_angle = 270/360 * 2 * math.pi
+                else:
+                    current_angle = math.atan2(delta_x,delta_y)
+                current_angle += 0.5*angle_dif
+                if current_angle < 0:
+                    current_angle = 2* math.pi + current_angle
+                
+                current_angle = current_angle - (angle*0.5)/360 * 2*math.pi
+                if current_angle < 0:
+                    current_angle = 2*math.pi + current_angle 
+                vel = 1
+                for _ in range(num_projectiles):
+                    x_vel = math.sin(current_angle) * vel
+                    y_vel = math.cos(current_angle) * vel
+                    color = random.choice(Main.COLORS)
+                    projectile = self.SubProjectile(x,y,x_vel,y_vel,color,self)
+                    self.projectiles.append(projectile)
+                    current_angle += angle_dif
+                    if current_angle > 2 * math.pi:
+                        current_angle = current_angle - 2*math.pi
         
             def move(self, max_width, max_height):
                 if not self.exploded:
@@ -158,40 +188,63 @@ class Main:
                     pygame.draw.circle(self.win,self.color,(self.x,self.y),self.RADIUS)
             
                 for projectile in self.projectiles:
-                    projectile.draw()
+                    if projectile.alpha > 0:
+                        projectile.draw()
                 
             class Projectile:
                 WIDTH = 5
                 HEIGHT = 10
                 ALPHA_DECREMENT = 3
 
-                def __init__(self, x, y, x_vel, y_vel, color, win):
+                def __init__(self, x, y, x_vel, y_vel, color,firework):
                     self.x = x
                     self.y = y 
                     self.x_vel = x_vel 
                     self.y_vel = y_vel
                     self.color = color
-                    self.win = win
+                    self.firework = firework
                     self.alpha = 255
                 
                 def move(self):
                     self.x += self.x_vel
                     self.y += self.y_vel
-                    self.alpha = max(0,self.alpha-self.ALPHA_DECREMENT)
+                    if self.alpha > 0 and self.alpha <= self.ALPHA_DECREMENT:
+                        self.alpha = 0
+                        angle = 360
+                        self.firework.create_sub_projectiles(self.x,self.y,angle)
+                    else:
+                        self.alpha = self.alpha-self.ALPHA_DECREMENT
                 
                 def draw(self):
-                    self.draw_rect_alpha(self.win, self.color + (self.alpha,), (self.x,self.y,self.WIDTH,self.HEIGHT))
-                
+                    self.draw_rect_alpha(self.firework.win, self.color + (self.alpha,), (self.x,self.y,self.WIDTH,self.HEIGHT))
+                                
                 @staticmethod
                 def draw_rect_alpha(surface, color, rect):
                     shape_surf = pygame.Surface(pygame.Rect(rect).size, pygame.SRCALPHA)
                     pygame.draw.rect(shape_surf,color,shape_surf.get_rect())
                     surface.blit(shape_surf,rect)
+                
+            class SubProjectile(Projectile):
+                WIDTH = 3
+                HEIGHT = 6
+                ALPHA_DECREMENT = 5
+                def __init__(self, x, y, x_vel, y_vel, color, firework):
+                    super().__init__(x, y, x_vel, y_vel, color, firework)
+                
+                def move(self):
+                    self.x += self.x_vel
+                    self.y += self.y_vel
+                    if self.alpha > 0 and self.alpha <= self.ALPHA_DECREMENT:
+                        self.alpha = 0
+                    else:
+                        self.alpha = self.alpha-self.ALPHA_DECREMENT
+
+
 
 if __name__ == "__main__":
-    num_launchers = 999 #if larger than window size, it will take the maximum ammount possible
+    num_launchers = 3 #if larger than window size, it will take the maximum ammount possible
     min_frequency = 2000
-    max_frequency = 4000
-    width = 1920 * 0.8 #optional
-    height = 1080 * 0.8 #optional
+    max_frequency = 5000
+    width = 1920 * 1 #optional
+    height = 1080 * 1 #optional
     Main(num_launchers, min_frequency, max_frequency, width, height).run()
